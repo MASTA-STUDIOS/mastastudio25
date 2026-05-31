@@ -20,6 +20,11 @@ else:
     DB_PATH = 'submissions.db'
     USE_PG = False
 
+# ── Admin key ─────────────────────────────────────────────────────────────────
+# Set ADMIN_KEY as environment variable on Render
+# Locally falls back to 'admin123' — change this!
+ADMIN_KEY = os.environ.get('ADMIN_KEY', 'admin123')
+
 
 def get_conn():
     if USE_PG:
@@ -77,7 +82,7 @@ def submit():
 
     conn = get_conn()
     c = conn.cursor()
-    ph = '%s' if USE_PG else '?'   # placeholder differs between PG and SQLite
+    ph = '%s' if USE_PG else '?'
     c.execute(f"""
         INSERT INTO submissions (type, link, author, created_at)
         VALUES ({ph}, {ph}, {ph}, {ph})
@@ -85,6 +90,48 @@ def submit():
     conn.commit()
     conn.close()
     return redirect('/')
+
+
+# ── Admin routes ──────────────────────────────────────────────────────────────
+
+@app.route('/admin')
+def admin():
+    key = request.args.get('key', '')
+    if key != ADMIN_KEY:
+        return 'Forbidden', 403
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute('SELECT * FROM submissions ORDER BY id DESC')
+    rows = c.fetchall()
+    conn.close()
+    return render_template('admin.html', rows=rows, key=key)
+
+
+@app.route('/admin/delete/<int:id>')
+def delete_one(id):
+    key = request.args.get('key', '')
+    if key != ADMIN_KEY:
+        return 'Forbidden', 403
+    conn = get_conn()
+    c = conn.cursor()
+    ph = '%s' if USE_PG else '?'
+    c.execute(f'DELETE FROM submissions WHERE id = {ph}', (id,))
+    conn.commit()
+    conn.close()
+    return redirect(f'/admin?key={key}')
+
+
+@app.route('/admin/delete-all')
+def delete_all():
+    key = request.args.get('key', '')
+    if key != ADMIN_KEY:
+        return 'Forbidden', 403
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute('DELETE FROM submissions')
+    conn.commit()
+    conn.close()
+    return redirect(f'/admin?key={key}')
 
 
 if __name__ == '__main__':
