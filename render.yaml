@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: masta-studio-25
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        sync: false   # you paste this manually in Render dashboard
